@@ -4,28 +4,27 @@ const fetchConversionRate = async (currency) => {
     return data.rates[currency];
   };
   
-  const convertToEuro = (priceInYuan, conversionRate) => {
+  const convertToCurrency = (priceInYuan, conversionRate) => {
     return (priceInYuan * conversionRate).toFixed(2);
   };
   
   const main = async () => {
     chrome.storage.sync.get('currency', async function(data) {
         const currency = data.currency || 'USD';
-        console.log(currency);
         const conversionRate = await fetchConversionRate(currency);
-        const elements = document.querySelectorAll('.text_overflow.album__title, .showalbumheader__gallerytitle');
+        const elements = document.querySelectorAll('.text_overflow.album__title, .showalbumheader__gallerytitle, .album3__title');
         elements.forEach((element) => {
-            if (element.textContent.includes('￥') || element.textContent.includes('¥') || element.textContent.includes('CNY') || element.textContent.includes('yuan')) {
-                const match = RegExp(/(\d+(\.\d{1,2})?)/).exec(element.textContent);
-                if (match) {
-                    const priceInYuan = parseFloat(match[0]);
-                    const priceInEuro = convertToEuro(priceInYuan, conversionRate);
-                    const currencySymbol = getCurrencySymbol(currency);
-                    if (element.textContent.toLowerCase().includes('sale')) {
-                        element.innerHTML = `<span style="color: green; font-weight:bold;">🔥 ${currencySymbol}${priceInEuro}</span> - ${element.textContent}`;
-                    } else {
-                        element.innerHTML = `<span style="color: blue;">${currencySymbol}${priceInEuro}</span> - ${element.textContent.replaceAll("🔥", "")}`;
-                    }
+            const regex = /(RMB|￥|¥|CNY|yuan)\s*(\d+(\.\d{1,2})?)|(\d+(\.\d{1,2})?)\s*(RMB|￥|¥|CNY|yuan)/gi;
+            const match = regex.exec(element.textContent);
+            if (match) {
+                const priceInYuan = parseFloat(match[2] || match[4]);
+                const priceInCurrency = convertToCurrency(priceInYuan, conversionRate);
+                const currencySymbol = getCurrencySymbol(currency);
+
+                if (element.textContent.toLowerCase().includes('sale')) {
+                    element.innerHTML = `<span style="color: green; font-weight:bold;">🔥 ${currencySymbol}${priceInCurrency}</span> - ${element.textContent}`;
+                } else {
+                    element.innerHTML = `<span style="color: blue;">${currencySymbol}${priceInCurrency}</span> - ${element.textContent.replaceAll("🔥", "")}`;
                 }
             }
         });
@@ -33,7 +32,6 @@ const fetchConversionRate = async (currency) => {
 }
 
 main();
-
 
 /**
  * Get the currency symbol for a given currency code.
