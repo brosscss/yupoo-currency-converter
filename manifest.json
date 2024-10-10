@@ -1,16 +1,16 @@
 {
-    "manifest_version": 3,
-    "name": "Yupoo Currencies Converter",
-    "version": "1.2",
-    "permissions": ["storage"],
-    "content_scripts": [
-      {
-        "matches": ["*://*.x.yupoo.com/*"],
-        "js": ["popup.js", "content.js"]
-      }
-    ],
-    "action": {
-      "default_icon": "icon.png",
-      "default_popup": "popup.html"
+  "manifest_version": 3,
+  "name": "Yupoo Currencies Converter",
+  "version": "1.3",
+  "permissions": ["storage"],
+  "content_scripts": [
+    {
+      "matches": ["*://*.x.yupoo.com/*"],
+      "js": ["popup.js", "content.js"]
     }
+  ],
+  "action": {
+    "default_icon": "icon.png",
+    "default_popup": "popup.html"
+  }
 }

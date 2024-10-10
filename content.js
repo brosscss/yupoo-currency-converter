@@ -9,27 +9,43 @@ const fetchConversionRate = async (currency) => {
   };
   
   const main = async () => {
-    chrome.storage.sync.get('currency', async function(data) {
-        const currency = data.currency || 'USD';
-        const conversionRate = await fetchConversionRate(currency);
-        const elements = document.querySelectorAll('.text_overflow.album__title, .showalbumheader__gallerytitle, .album3__title');
-        elements.forEach((element) => {
-            const regex = /(RMB|￥|¥|CNY|yuan)\s*(\d+(\.\d{1,2})?)|(\d+(\.\d{1,2})?)\s*(RMB|￥|¥|CNY|yuan)/gi;
-            const match = regex.exec(element.textContent);
-            if (match) {
-                const priceInYuan = parseFloat(match[2] || match[4]);
-                const priceInCurrency = convertToCurrency(priceInYuan, conversionRate);
-                const currencySymbol = getCurrencySymbol(currency);
-
-                if (element.textContent.toLowerCase().includes('sale')) {
-                    element.innerHTML = `<span style="color: green; font-weight:bold;">🔥 ${currencySymbol}${priceInCurrency}</span> - ${element.textContent}`;
-                } else {
-                    element.innerHTML = `<span style="color: blue;">${currencySymbol}${priceInCurrency}</span> - ${element.textContent.replaceAll("🔥", "")}`;
-                }
-            }
-        });
+    const { currency = 'USD' } = await chrome.storage.sync.get('currency');
+    const conversionRate = await fetchConversionRate(currency);
+    const elements = document.querySelectorAll('.text_overflow.album__title, .showalbumheader__gallerytitle, .album3__title, .showalbumheader__gallerysubtitle');
+    
+    elements.forEach((element) => {
+        updatePriceForElement(element, conversionRate, currency);
     });
-}
+};
+
+const updatePriceForElement = (element, conversionRate, currency) => {
+    const regex = /(RMB|￥|¥|CNY|yuan)\s*(\d+(\.\d{1,2})?)|(\d+(\.\d{1,2})?)\s*(RMB|￥|¥|CNY|yuan)/gi;
+    const match = regex.exec(element.innerHTML); 
+
+    if (match) {
+        const priceInYuan = parseFloat(match[2] || match[4]);
+        const priceInCurrency = convertToCurrency(priceInYuan, conversionRate);
+        const currencySymbol = getCurrencySymbol(currency);
+        
+        const beforePrice = element.innerHTML.substring(0, match.index);
+        const afterPrice = element.innerHTML.substring(match.index + match[0].length);
+        
+        let newPriceHTML = `<span style="color: blue;">${currencySymbol}${priceInCurrency}</span> (${match[0]}) `;
+        
+        document.title = `🔥 ${currencySymbol}${priceInCurrency} - ${document.title}`;
+
+        if (element.textContent.toLowerCase().includes('sale')) {
+            newPriceHTML = `<span style="color: green; font-weight:bold;">🔥 ${currencySymbol}${priceInCurrency}</span> (${match[0]}) `;
+        }
+
+        if (!beforePrice ) {
+            element.innerHTML = beforePrice + newPriceHTML + afterPrice;
+            return;
+        }
+     
+        element.innerHTML = newPriceHTML + beforePrice.replace(/[，,]/g, '');
+    }
+};
 
 main();
 
