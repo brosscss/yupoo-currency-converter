@@ -1,3 +1,5 @@
+chrome.runtime.sendMessage({ checkUpdate: true });
+
 const fetchConversionRate = async (currency) => {
     const response = await fetch('https://api.exchangerate-api.com/v4/latest/CNY');
     const data = await response.json();
@@ -19,31 +21,50 @@ const fetchConversionRate = async (currency) => {
 };
 
 const updatePriceForElement = (element, conversionRate, currency) => {
-    const regex = /(RMB|￥|¥|CNY|yuan)\s*(\d+(\.\d{1,2})?)|(\d+(\.\d{1,2})?)\s*(RMB|￥|¥|CNY|yuan)/gi;
-    const match = regex.exec(element.innerHTML); 
+    const calculationRegex = /[（(]¥(\d+)\s*([\+\-\*\/])\s*¥(\d+)[）)]/g;
+    const regex = /(?:￥|¥|CNY|yuan)\s*(\d+(\.\d{1,2})?)|(\d+(\.\d{1,2})?)\s*(￥|¥|CNY|yuan)/gi;
 
-    if (match) {
-        const priceInYuan = parseFloat(match[2] || match[4]);
-        const priceInCurrency = convertToCurrency(priceInYuan, conversionRate);
+    let matchCalculation = calculationRegex.exec(element.innerHTML);
+    let totalYuan = 0;
+
+    if (matchCalculation) {
+        const value1 = parseFloat(matchCalculation[1]);
+        const operator = matchCalculation[2];
+        const value2 = parseFloat(matchCalculation[3]);
+
+        switch (operator) {
+            case '+':
+                totalYuan = value1 + value2;
+                break;
+            case '-':
+                totalYuan = value1 - value2;
+                break;
+            case '*':
+                totalYuan = value1 * value2;
+                break;
+            case '/':
+                totalYuan = value1 / value2;
+                break;
+        }
+
+        element.innerHTML = element.innerHTML.replace(matchCalculation[0], `¥${totalYuan}`);
+    } else {
+        const match = regex.exec(element.innerHTML);
+        console.log(match);
+
+        if (match) {
+            totalYuan = parseFloat(match[1] || match[3]);
+        }
+    }
+
+    if (totalYuan > 0) {
+        const priceInCurrency = convertToCurrency(totalYuan, conversionRate);
         const currencySymbol = getCurrencySymbol(currency);
-        
-        const beforePrice = element.innerHTML.substring(0, match.index);
-        const afterPrice = element.innerHTML.substring(match.index + match[0].length);
-        
-        let newPriceHTML = `<span style="color: blue;">${currencySymbol}${priceInCurrency}</span> (${match[0]}) `;
-        
-        document.title = `🔥 ${currencySymbol}${priceInCurrency} - ${document.title}`;
-
-        if (element.textContent.toLowerCase().includes('sale')) {
-            newPriceHTML = `<span style="color: green; font-weight:bold;">🔥 ${currencySymbol}${priceInCurrency}</span> (${match[0]}) `;
-        }
-
-        if (!beforePrice ) {
-            element.innerHTML = beforePrice + newPriceHTML + afterPrice;
-            return;
-        }
-     
-        element.innerHTML = newPriceHTML + beforePrice.replace(/[，,]/g, '');
+        element.innerHTML = element.innerHTML.replace(/\$\d+(\.\d{2})?\s*\(￥?\d+¥?\)\s*/g, '');
+        const cleanTextRegex = /,?\s*(?:￥|¥|CNY|yuan)?\s*\d+(\.\d{1,2})?\s*(?:￥|¥|CNY|yuan)?$/;
+        const cleanedText = element.innerHTML.split(' ').filter((part) => !cleanTextRegex.test(part)).join(' ');
+        const newPriceHTML = `<span style="color: blue;">${currencySymbol}${priceInCurrency}</span> (￥${totalYuan})`;
+        element.innerHTML = `${newPriceHTML} ${cleanedText.trim()}`.replace(/,+$/, '');
     }
 };
 
